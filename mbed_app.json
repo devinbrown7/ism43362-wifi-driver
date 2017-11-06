@@ -1,0 +1,12 @@
+{
+    "config": {
+        "wifi-tx": {
+            "help": "WiFi TX",
+            "value": ""
+        },
+        "wifi-rx": {
+            "help": "WiFi RX",
+            "value": ""
+        }
+    }
+}
