@@ -20,7 +20,7 @@
 #include "mbed.h"
 #include "ISM43362.h"
 
-#define ISM43362_SOCKET_COUNT 5
+#define ISM43362_SOCKET_COUNT 4
 
 /** ISM43362Interface class
  *  Implementation of the NetworkStack for the ISM43362
@@ -29,11 +29,8 @@ class ISM43362Interface : public NetworkStack, public WiFiInterface
 {
 public:
     /** ISM43362Interface lifetime
-     * @param tx        TX pin
-     * @param rx        RX pin
-     * @param debug     Enable debugging
      */
-    ISM43362Interface(bool debug = false);
+    ISM43362Interface();
 
     /** Start the interface
      *
@@ -137,7 +134,8 @@ public:
      *                  version is chosen by the stack (defaults to NSAPI_UNSPEC)
      *  @return         0 on success, negative error code on failure
      */
-    using NetworkInterface::gethostbyname;
+    // using NetworkInterface::gethostbyname;
+    virtual int gethostbyname(const char *host, SocketAddress *address, nsapi_version_t version=NSAPI_UNSPEC);
 
     /** Add a domain name server to list of servers to query
      *
@@ -269,6 +267,7 @@ private:
         void (*callback)(void *);
         void *data;
     } _cbs[ISM43362_SOCKET_COUNT];
+
 };
 
 #endif

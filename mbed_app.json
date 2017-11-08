@@ -2,11 +2,19 @@
     "config": {
         "wifi-tx": {
             "help": "WiFi TX",
-            "value": ""
+            "value": "PD_8"
         },
         "wifi-rx": {
             "help": "WiFi RX",
-            "value": ""
+            "value": "PD_9"
+        },
+        "wifi-ssid": {
+            "help": "WiFi SSID",
+            "value": "\"SpinDance\""
+        },
+        "wifi-password": {
+            "help": "WiFi Password",
+            "value": "\"spindance3557000\""
         }
     }
 }

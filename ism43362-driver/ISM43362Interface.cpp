@@ -23,21 +23,21 @@
 #define ISM43362_CONNECT_TIMEOUT 15000
 #endif
 #ifndef ISM43362_SEND_TIMEOUT
-#define ISM43362_SEND_TIMEOUT    500
+#define ISM43362_SEND_TIMEOUT    1000
 #endif
 #ifndef ISM43362_RECV_TIMEOUT
-#define ISM43362_RECV_TIMEOUT    500
+#define ISM43362_RECV_TIMEOUT    1000
 #endif
 #ifndef ISM43362_MISC_TIMEOUT
-#define ISM43362_MISC_TIMEOUT    500
+#define ISM43362_MISC_TIMEOUT    1000
 #endif
 
 // Firmware version
 #define ISM43362_VERSION 2
 
 // ISM43362Interface implementation
-ISM43362Interface::ISM43362Interface(bool debug)
-    : _ism(debug)
+ISM43362Interface::ISM43362Interface()
+    : _ism()
 {
     memset(_ids, 0, sizeof(_ids));
     memset(_cbs, 0, sizeof(_cbs));
@@ -60,36 +60,15 @@ int ISM43362Interface::connect()
 {
     _ism.setTimeout(ISM43362_CONNECT_TIMEOUT);
 
-    if (!_ism.reset()) {
-        return NSAPI_ERROR_DEVICE_ERROR;
-    }
-
-    _ism.setTimeout(ISM43362_MISC_TIMEOUT);
-
-    if (_ism.get_firmware_version() != ISM43362_VERSION) {
-        debug("ISM43362: ERROR: Firmware incompatible with this driver.\
-               \r\nUpdate to v%d - https://developer.mbed.org/teams/ISM43362/wiki/Firmware-Update\r\n",ISM43362_VERSION);
-        return NSAPI_ERROR_DEVICE_ERROR;
-    }
-
-    _ism.setTimeout(ISM43362_CONNECT_TIMEOUT);
-
-    if (!_ism.startup(3)) {
-        return NSAPI_ERROR_DEVICE_ERROR;
-    }
-
-    if (!_ism.dhcp(true, 1)) {
+    if (!_ism.dhcp(true)) {
         return NSAPI_ERROR_DHCP_FAILURE;
     }
-
-    if (!_ism.connect(ap_ssid, ap_pass)) {
+    if (!_ism.connect(ap_ssid, ap_pass, ap_sec)) {
         return NSAPI_ERROR_NO_CONNECTION;
     }
-
     if (!_ism.getIPAddress()) {
         return NSAPI_ERROR_DHCP_FAILURE;
     }
-
     return NSAPI_ERROR_OK;
 }
 
@@ -153,7 +132,17 @@ int ISM43362Interface::scan(WiFiAccessPoint *res, unsigned count)
     return _ism.scan(res, count);
 }
 
-struct esp8266_socket {
+int ISM43362Interface::gethostbyname(const char *host, SocketAddress *address, nsapi_version_t version)
+{
+    // bool dns_lookup(const char *name, char *ip);
+    char addr[16];
+    int ret = _ism.dns_lookup(host, addr);
+    int status = address->set_ip_address(addr);
+    printf("ISM43362Interface::gethostbyname address->get_ip_address: %s (%d)\n", address->get_ip_address(), status);
+    return ret;
+}
+
+struct ism43362_socket {
     int id;
     nsapi_protocol_t proto;
     bool connected;
@@ -177,7 +166,7 @@ int ISM43362Interface::socket_open(void **handle, nsapi_protocol_t proto)
         return NSAPI_ERROR_NO_SOCKET;
     }
 
-    struct esp8266_socket *socket = new struct esp8266_socket;
+    struct ism43362_socket *socket = new struct ism43362_socket;
     if (!socket) {
         return NSAPI_ERROR_NO_SOCKET;
     }
@@ -191,7 +180,7 @@ int ISM43362Interface::socket_open(void **handle, nsapi_protocol_t proto)
 
 int ISM43362Interface::socket_close(void *handle)
 {
-    struct esp8266_socket *socket = (struct esp8266_socket *)handle;
+    struct ism43362_socket *socket = (struct ism43362_socket *)handle;
     int err = 0;
     _ism.setTimeout(ISM43362_MISC_TIMEOUT);
 
@@ -210,45 +199,50 @@ int ISM43362Interface::socket_bind(void *handle, const SocketAddress &address)
     return NSAPI_ERROR_UNSUPPORTED;
 }
 
+// Listen for connections on a TCP socket.
 int ISM43362Interface::socket_listen(void *handle, int backlog)
 {
     return NSAPI_ERROR_UNSUPPORTED;
 }
 
+// Connects TCP socket to a remote host.
 int ISM43362Interface::socket_connect(void *handle, const SocketAddress &addr)
 {
-    struct esp8266_socket *socket = (struct esp8266_socket *)handle;
+    struct ism43362_socket *socket = (struct ism43362_socket *)handle;
     _ism.setTimeout(ISM43362_MISC_TIMEOUT);
 
-    const char *proto = (socket->proto == NSAPI_UDP) ? "UDP" : "TCP";
-    if (!_ism.open(proto, socket->id, addr.get_ip_address(), addr.get_port())) {
+    if (!_ism.open(socket->proto, socket->id, addr.get_ip_address(), addr.get_port())) {
+        printf("ISM43362Interface::socket_connect NSAPI_ERROR_DEVICE_ERROR\n");
         return NSAPI_ERROR_DEVICE_ERROR;
     }
-
     socket->connected = true;
     return 0;
 }
 
+// Accepts a connection on a TCP socket.
 int ISM43362Interface::socket_accept(void *server, void **socket, SocketAddress *addr)
 {
     return NSAPI_ERROR_UNSUPPORTED;
 }
 
+// Send data over a TCP socket.
 int ISM43362Interface::socket_send(void *handle, const void *data, unsigned size)
 {
-    struct esp8266_socket *socket = (struct esp8266_socket *)handle;
+    struct ism43362_socket *socket = (struct ism43362_socket *)handle;
     _ism.setTimeout(ISM43362_SEND_TIMEOUT);
 
     if (!_ism.send(socket->id, data, size)) {
+        printf("ISM43362Interface::socket_send NSAPI_ERROR_DEVICE_ERROR\n");
         return NSAPI_ERROR_DEVICE_ERROR;
     }
 
     return size;
 }
 
+// Receive data over a TCP socket.
 int ISM43362Interface::socket_recv(void *handle, void *data, unsigned size)
 {
-    struct esp8266_socket *socket = (struct esp8266_socket *)handle;
+    struct ism43362_socket *socket = (struct ism43362_socket *)handle;
     _ism.setTimeout(ISM43362_RECV_TIMEOUT);
 
     int32_t recv = _ism.recv(socket->id, data, size);
@@ -259,9 +253,10 @@ int ISM43362Interface::socket_recv(void *handle, void *data, unsigned size)
     return recv;
 }
 
+// Send a packet over a UDP socket.
 int ISM43362Interface::socket_sendto(void *handle, const SocketAddress &addr, const void *data, unsigned size)
 {
-    struct esp8266_socket *socket = (struct esp8266_socket *)handle;
+    struct ism43362_socket *socket = (struct ism43362_socket *)handle;
 
     if (socket->connected && socket->addr != addr) {
         _ism.setTimeout(ISM43362_MISC_TIMEOUT);
@@ -282,9 +277,10 @@ int ISM43362Interface::socket_sendto(void *handle, const SocketAddress &addr, co
     return socket_send(socket, data, size);
 }
 
+// Receive a packet over a UDP socket.
 int ISM43362Interface::socket_recvfrom(void *handle, SocketAddress *addr, void *data, unsigned size)
 {
-    struct esp8266_socket *socket = (struct esp8266_socket *)handle;
+    struct ism43362_socket *socket = (struct ism43362_socket *)handle;
     int ret = socket_recv(socket, data, size);
     if (ret >= 0 && addr) {
         *addr = socket->addr;
@@ -293,9 +289,10 @@ int ISM43362Interface::socket_recvfrom(void *handle, SocketAddress *addr, void *
     return ret;
 }
 
+// Register a callback on state change of the socket.
 void ISM43362Interface::socket_attach(void *handle, void (*callback)(void *), void *data)
 {
-    struct esp8266_socket *socket = (struct esp8266_socket *)handle;
+    struct ism43362_socket *socket = (struct ism43362_socket *)handle;
     _cbs[socket->id].callback = callback;
     _cbs[socket->id].data = data;
 }

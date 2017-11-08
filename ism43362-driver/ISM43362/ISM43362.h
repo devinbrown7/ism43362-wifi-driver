@@ -17,8 +17,14 @@
 #ifndef ISM43362_H
 #define ISM43362_H
 
-#include "ATCmdParser.h"
-#include "SPI.h"
+#include "mbed.h"
+#include "wifi.h"
+#include <cstdarg>
+#include "Callback.h"
+#include <stdint.h>
+#include "nsapi_types.h"
+
+#include "WiFiAccessPoint.h"
 
 /** ISM43362Interface class.
     This is an interface to a ISM43362 radio.
@@ -26,7 +32,7 @@
 class ISM43362
 {
 public:
-    ISM43362(bool debug=false);
+    ISM43362();
 
     /**
     * Check firmware version of ISM43362
@@ -54,19 +60,19 @@ public:
     * Enable/Disable DHCP
     *
     * @param enabled DHCP enabled when true
-    * @param mode mode of DHCP 0-softAP, 1-station, 2-both
     * @return true only if ISM43362 enables/disables DHCP successfully
     */
-    bool dhcp(bool enabled, int mode);
+    bool dhcp(bool enabled);
 
     /**
     * Connect ISM43362 to AP
     *
-    * @param ap the name of the AP
+    * @param ssid the name of the AP
     * @param passPhrase the password of AP
+    * @param security the security of AP
     * @return true only if ISM43362 is connected successfully
     */
-    bool connect(const char *ap, const char *passPhrase);
+    bool connect(const char *ssid, const char *passPhrase, nsapi_security_t security);
 
     /**
     * Disconnect ISM43362 from AP
@@ -129,9 +135,10 @@ public:
     *
     * @param name Hostname to resolve
     * @param ip   Buffer to store IP address
-    * @return 0 true on success, false on failure
+    * @return       Number of entries in @a res, or if @a count was 0 number of available networks, negative on error
+    *               see @a nsapi_error
     */
-    bool dns_lookup(const char *name, char *ip);
+    int dns_lookup(const char *name, char *ip);
 
     /**
     * Open a socketed connection
@@ -142,7 +149,7 @@ public:
     * @param addr the IP address of the destination
     * @return true only if socket opened successfully
     */
-    bool open(const char *type, int id, const char* addr, int port);
+    bool open(nsapi_protocol_t type, int id, const char* addr, int port);
 
     /**
     * Sends data to an open socket
@@ -208,9 +215,6 @@ public:
     }
 
 private:
-    SPI _spi;
-    ATCmdParser _parser;
-
     struct packet {
         struct packet *next;
         int id;
@@ -218,12 +222,16 @@ private:
         // data follows
     } *_packets, **_packets_end;
     void _packet_handler();
-    bool recv_ap(nsapi_wifi_ap_t *ap);
+    void wifi_ap2ns_api_wifi_ap(WIFI_AP_t *wifi_ap, nsapi_wifi_ap_t *ns_api_wifi_ap);
+    nsapi_security_t wifi_ecn2nsapi_security(WIFI_Ecn_t wifi_ecn);
+    WIFI_Ecn_t nsapi_security2wifi_ecn(nsapi_security_t nsapi_security);
+    WIFI_Protocol_t nsapi_protocol2WIFI_Protocol(nsapi_protocol_t nsapi_protocol);
 
     char _ip_buffer[16];
     char _gateway_buffer[16];
     char _netmask_buffer[16];
     char _mac_buffer[18];
+    uint32_t timeout;
 };
 
 #endif
