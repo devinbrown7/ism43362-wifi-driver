@@ -154,11 +154,9 @@ void http_demo(NetworkInterface *net)
 }
 
 void wifiDemo() {
-
-        int count = 0;
-
         printf("WiFi example\n\n");
 
+        // int count = 0;
         // count = scan_demo(&wifi);
         // if (count == 0) {
         //     printf("No WIFI APNs found - can't continue further.\n");
@@ -179,17 +177,13 @@ void wifiDemo() {
         printf("Gateway: %s\n", wifi.get_gateway());
         printf("RSSI: %d\n\n", wifi.get_rssi());
 
-        // http_demo(&wifi);
-        //
-        // wifi.disconnect();
-        //
-        // printf("\nDone\n");
+        // CHOOSE ONE!
 
         // ntpDemo();
         // wsDemo();
         // udpServerDemo();
         // udpClientDemo();
-        mqttDemo();
+        // mqttDemo();
 }
 
 void ntpDemo() {
@@ -223,7 +217,7 @@ void wsDemo() {
     char recv[100];
 
     while (1) {
-        int res = ws.send((char *)"WebSocket Hello World!");
+        ws.send((char *)"WebSocket Hello World!");
         if (ws.read(recv)) {
             printf("rcv: %s\r\n", recv);
         }
@@ -235,7 +229,7 @@ void udpServerDemo() {
      printf("IP Address is %s\n\r", wifi.get_ip_address());
 
      UDPSocket socket;
-     uint buffer_size = 256;
+     const uint buffer_size = 256;
      char buffer[buffer_size];
 
      if (socket.open(&wifi) < 0) {
@@ -294,8 +288,8 @@ void udpClientDemo() {
     }
 
     ntp_packet in_data;
-    int n = sock.recvfrom(&sockAddr, &in_data, sizeof(ntp_packet));
-    in_data.secs = ntohl( in_data.secs ) - 2208988800;    // 1900-1970
+    sock.recvfrom(&sockAddr, &in_data, sizeof(ntp_packet));
+    in_data.secs = ntohl(in_data.secs) - (uint32_t)2208988800;    // 1900-1970
     printf("Time Received %lu seconds since 1/01/1900 00:00 GMT\n",
                         (uint32_t)in_data.secs);
     printf("Time = %s", ctime(( const time_t* )&in_data.secs));
@@ -311,7 +305,7 @@ void udpClientDemo() {
 
 void mqttDemo() {
     float version = 0.6;
-    char* topic = "mbed-sample-db";
+    char* topic = (char *)"mbed-sample-db";
 
     logMessage("HelloMQTT: version is %.2f\r\n", version);
 
@@ -329,9 +323,9 @@ void mqttDemo() {
 
     MQTTPacket_connectData data = MQTTPacket_connectData_initializer;
     data.MQTTVersion = 3;
-    data.clientID.cstring = "clientId-lySQ9Xr7MG";
-    data.username.cstring = "testuser";
-    data.password.cstring = "testpassword";
+    data.clientID.cstring = (char *)"clientId-lySQ9Xr7MG";
+    data.username.cstring = (char *)"testuser";
+    data.password.cstring = (char *)"testpassword";
     if ((rc = client.connect(data)) != 0)
         logMessage("rc from MQTT connect is %d\r\n", rc);
 
