@@ -187,16 +187,6 @@ public:
     void setTimeout(uint32_t timeout_ms);
 
     /**
-    * Checks if data is available
-    */
-    bool readable();
-
-    /**
-    * Checks if data can be written
-    */
-    bool writeable();
-
-    /**
     * Attach a function to call whenever network state has changed
     *
     * @param func A pointer to a void function, or 0 to set as none
@@ -221,7 +211,6 @@ private:
         uint32_t len;
         // data follows
     } *_packets, **_packets_end;
-    void _packet_handler();
     void wifi_ap2ns_api_wifi_ap(WIFI_AP_t *wifi_ap, nsapi_wifi_ap_t *ns_api_wifi_ap);
     nsapi_security_t wifi_ecn2nsapi_security(WIFI_Ecn_t wifi_ecn);
     WIFI_Ecn_t nsapi_security2wifi_ecn(nsapi_security_t nsapi_security);

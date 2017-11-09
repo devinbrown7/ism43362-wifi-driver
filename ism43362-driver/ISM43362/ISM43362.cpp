@@ -26,44 +26,20 @@ ISM43362::ISM43362()
 
 int ISM43362::get_firmware_version()
 {
-    // _parser.send("AT+GMR");
-    // int version;
-    // if(_parser.recv("SDK version:%d", &version) && _parser.recv("OK")) {
-    //     return version;
-    // } else {
-    //     // Older firmware versions do not prefix the version with "SDK version: "
-    //     return -1;
-    // }
-
-    // TODO
-
-    return 0;
-
+    char rev;
+    WIFI_GetModuleFwRevision(&rev);
+    return (int)rev;
 }
 
 bool ISM43362::startup(int mode)
 {
-    // //only 3 valid modes
-    // if(mode < 1 || mode > 3) {
-    //     return false;
-    // }
-    //
-    // bool success = _parser.send("AT+CWMODE_CUR=%d", mode)
-    //     && _parser.recv("OK")
-    //     && _parser.send("AT+CIPMUX=1")
-    //     && _parser.recv("OK");
-    //
-    // _parser.oob("+IPD", callback(this, &ISM43362::_packet_handler));
-    //
-    // return success;
-
-    // TODO
-
-    return false;
+    // TODO? Maybe this should be empty
+    return true;
 }
 
 bool ISM43362::reset(void)
 {
+    // TODO: This isn't returning
     return WIFI_ResetModule() == WIFI_STATUS_OK;
 }
 
@@ -81,11 +57,7 @@ bool ISM43362::connect(const char *ssid, const char *passPhrase, nsapi_security_
 
 bool ISM43362::disconnect(void)
 {
-    // return _parser.send("AT+CWQAP") && _parser.recv("OK");
-
-    // TODO
-
-    return false;
+    return WIFI_Disconnect() == WIFI_STATUS_OK;
 }
 
 const char *ISM43362::getIPAddress(void)
@@ -140,11 +112,7 @@ int8_t ISM43362::getRSSI()
 
 bool ISM43362::isConnected(void)
 {
-    // return getIPAddress() != 0;
-
-    // TODO
-
-    return false;
+    return getIPAddress() != 0;
 }
 
 int ISM43362::scan(WiFiAccessPoint *res, unsigned limit)
@@ -166,14 +134,9 @@ int ISM43362::scan(WiFiAccessPoint *res, unsigned limit)
 
 bool ISM43362::open(nsapi_protocol_t type, int id, const char* addr, int port)
 {
-    printf("ISM43362::open socket %d - %s:%d\n", id, addr, port);
     WIFI_Protocol_t proto = nsapi_protocol2WIFI_Protocol(type);
     SocketAddress s_addr(addr, (uint16_t)port);
-    //return  == WIFI_STATUS_OK;
-
-    printf("ISM43362::open: AAA\n");
-    uint8_t status = WIFI_OpenClientConnection(id, proto, "Socket Name", (uint8_t*)s_addr.get_ip_bytes(), (uint16_t)port, (uint16_t)6000);
-    printf("ISM43362::open: BBB status %d\n", status);
+    uint8_t status = WIFI_OpenClientConnection(id, proto, "", (uint8_t*)s_addr.get_ip_bytes(), (uint16_t)port, 0);
     //  == WIFI_STATUS_OK;
     return status == WIFI_STATUS_OK;
 }
@@ -191,119 +154,26 @@ int ISM43362::dns_lookup(const char* name, char* ip)
 
 bool ISM43362::send(int id, const void *data, uint32_t amount)
 {
-    // //May take a second try if device is busy
-    // for (unsigned i = 0; i < 2; i++) {
-    //     if (_parser.send("AT+CIPSEND=%d,%d", id, amount)
-    //         && _parser.recv(">")
-    //         && _parser.write((char*)data, (int)amount) >= 0) {
-    //         return true;
-    //     }
-    // }
-    //
-    // return false;
-
-    // TODO
-
-    // WIFI_SendData(uint8_t socket, uint8_t *pdata, uint16_t Reqlen, uint16_t *SentDatalen, uint32_t Timeout)
-    printf("ISM43362::send: AAA\n");
-    uint8_t status = WIFI_SendData((uint8_t)id, (uint8_t *)data, 0, (uint16_t *)&amount, timeout);
-    printf("ISM43362::send: BBB status %d\n", status);
-    //  == WIFI_STATUS_OK;
-    return status == WIFI_STATUS_OK;
-}
-
-void ISM43362::_packet_handler()
-{
-    // int id;
-    // uint32_t amount;
-    //
-    // // parse out the packet
-    // if (!_parser.recv(",%d,%d:", &id, &amount)) {
-    //     return;
-    // }
-    //
-    // struct packet *packet = (struct packet*)malloc(
-    //         sizeof(struct packet) + amount);
-    // if (!packet) {
-    //     return;
-    // }
-    //
-    // packet->id = id;
-    // packet->len = amount;
-    // packet->next = 0;
-    //
-    // if (!(_parser.read((char*)(packet + 1), amount))) {
-    //     free(packet);
-    //     return;
-    // }
-    //
-    // // append to packet list
-    // *_packets_end = packet;
-    // _packets_end = &packet->next;
-
-    // TODO
+    bool status = true;
+    uint16_t totalSent = 0;
+    uint16_t sent = 0;
+    while (totalSent < amount && status) {
+        status = WIFI_SendData((uint8_t)id, (uint8_t *)(data + totalSent), amount, &sent, timeout) == WIFI_STATUS_OK;
+        totalSent += sent;
+    }
+    return status;
 }
 
 int32_t ISM43362::recv(int id, void *data, uint32_t amount)
 {
-    // while (true) {
-    //     // check if any packets are ready for us
-    //     for (struct packet **p = &_packets; *p; p = &(*p)->next) {
-    //         if ((*p)->id == id) {
-    //             struct packet *q = *p;
-    //
-    //             if (q->len <= amount) { // Return and remove full packet
-    //                 memcpy(data, q+1, q->len);
-    //
-    //                 if (_packets_end == &(*p)->next) {
-    //                     _packets_end = p;
-    //                 }
-    //                 *p = (*p)->next;
-    //
-    //                 uint32_t len = q->len;
-    //                 free(q);
-    //                 return len;
-    //             } else { // return only partial packet
-    //                 memcpy(data, q+1, amount);
-    //
-    //                 q->len -= amount;
-    //                 memmove(q+1, (uint8_t*)(q+1) + amount, q->len);
-    //
-    //                 return amount;
-    //             }
-    //         }
-    //     }
-    //
-    //     // Check for inbound packets
-    //     if (!_parser.process_oob()) {
-    //         return -1;
-    //     }
-    // }
-
-    // TODO
-
-    // WIFI_Status_t       WIFI_ReceiveData(uint8_t socket, uint8_t *pdata, uint16_t Reqlen, uint16_t *RcvDatalen, uint32_t Timeout);
     uint16_t readLength;
     WIFI_ReceiveData((uint8_t)id, (uint8_t *)data, (uint16_t) amount, &readLength, timeout);
-    printf("Socket: %d    Read size: %d    Read length: %ld    Timeout: %ld\n", id, amount, readLength, timeout);
     return readLength;
 }
 
 bool ISM43362::close(int id)
 {
-    // //May take a second try if device is busy
-    // for (unsigned i = 0; i < 2; i++) {
-    //     if (_parser.send("AT+CIPCLOSE=%d", id)
-    //         && _parser.recv("OK")) {
-    //         return true;
-    //     }
-    // }
-    //
-    // return false;
-
-    // TODO
-
-    return false;
+    return WIFI_CloseClientConnection(id);
 }
 
 void ISM43362::setTimeout(uint32_t timeout_ms)
@@ -311,29 +181,9 @@ void ISM43362::setTimeout(uint32_t timeout_ms)
     timeout = timeout_ms;
 }
 
-bool ISM43362::readable()
-{
-    // return _serial.FileHandle::readable();
-
-    // TODO
-
-    return false;
-}
-
-bool ISM43362::writeable()
-{
-    // return _serial.FileHandle::writable();
-
-    // TODO
-
-    return false;
-}
-
 void ISM43362::attach(Callback<void()> func)
 {
-    // _serial.sigio(func);
-
-    // TODO
+    // TODO: Unimplemented
 }
 
 void ISM43362::wifi_ap2ns_api_wifi_ap(WIFI_AP_t *wifi_ap, nsapi_wifi_ap_t *ns_api_wifi_ap)

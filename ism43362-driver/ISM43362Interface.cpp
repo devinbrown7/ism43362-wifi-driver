@@ -138,7 +138,6 @@ int ISM43362Interface::gethostbyname(const char *host, SocketAddress *address, n
     char addr[16];
     int ret = _ism.dns_lookup(host, addr);
     int status = address->set_ip_address(addr);
-    printf("ISM43362Interface::gethostbyname address->get_ip_address: %s (%d)\n", address->get_ip_address(), status);
     return ret;
 }
 
@@ -212,7 +211,6 @@ int ISM43362Interface::socket_connect(void *handle, const SocketAddress &addr)
     _ism.setTimeout(ISM43362_MISC_TIMEOUT);
 
     if (!_ism.open(socket->proto, socket->id, addr.get_ip_address(), addr.get_port())) {
-        printf("ISM43362Interface::socket_connect NSAPI_ERROR_DEVICE_ERROR\n");
         return NSAPI_ERROR_DEVICE_ERROR;
     }
     socket->connected = true;
@@ -232,7 +230,6 @@ int ISM43362Interface::socket_send(void *handle, const void *data, unsigned size
     _ism.setTimeout(ISM43362_SEND_TIMEOUT);
 
     if (!_ism.send(socket->id, data, size)) {
-        printf("ISM43362Interface::socket_send NSAPI_ERROR_DEVICE_ERROR\n");
         return NSAPI_ERROR_DEVICE_ERROR;
     }
 
@@ -244,12 +241,10 @@ int ISM43362Interface::socket_recv(void *handle, void *data, unsigned size)
 {
     struct ism43362_socket *socket = (struct ism43362_socket *)handle;
     _ism.setTimeout(ISM43362_RECV_TIMEOUT);
-
     int32_t recv = _ism.recv(socket->id, data, size);
     if (recv < 0) {
         return NSAPI_ERROR_WOULD_BLOCK;
     }
-
     return recv;
 }
 
@@ -285,7 +280,6 @@ int ISM43362Interface::socket_recvfrom(void *handle, SocketAddress *addr, void *
     if (ret >= 0 && addr) {
         *addr = socket->addr;
     }
-
     return ret;
 }
 
